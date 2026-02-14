@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Monk Mode: Ultimate Flow</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2d3436">
+
     <style>
         :root {
             --bg: #f4f7f6; --surface: #ffffff; --primary: #2d3436; --accent: #00b894;
@@ -19,333 +25,219 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: var(--bg); color: var(--text);
-            margin: 0; padding: 0; height: 100vh;
-            display: flex; flex-direction: column; align-items: center; justify-content: flex-start;
-            transition: background 0.5s ease; overflow-x: hidden;
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh;
+            transition: background 0.5s ease;
+            /* Prevent accidental text selection on mobile */
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
         }
 
-        /* --- LAYOUT & CARDS --- */
-        .container { width: 90%; max-width: 420px; padding-top: 20px; padding-bottom: 40px; z-index: 2; }
-        
-        .card {
-            background: var(--surface); padding: 25px; border-radius: 24px;
-            box-shadow: var(--shadow); margin-bottom: 20px;
-            text-align: center; position: relative; overflow: hidden;
-            transition: transform 0.2s, opacity 0.5s;
+        .container {
+            width: 90%; max-width: 400px;
+            text-align: center;
+            background: var(--surface); padding: 40px 20px;
+            border-radius: 32px; box-shadow: var(--shadow);
+            position: relative; z-index: 10;
         }
 
-        /* --- QUOTE OF THE DAY --- */
-        .quote-box { font-style: italic; color: var(--subtext); font-size: 0.95rem; line-height: 1.5; margin-bottom: 10px; }
-        .quote-author { font-weight: bold; font-size: 0.8rem; display: block; margin-top: 8px; color: var(--accent); }
+        h1 { font-weight: 800; font-size: 1.8rem; margin-bottom: 5px; letter-spacing: -0.5px; }
+        .tagline { color: var(--subtext); font-size: 0.9rem; margin-bottom: 30px; }
 
-        /* --- MAIN TIMER UI --- */
-        .timer-ring { width: 220px; height: 220px; margin: 0 auto; position: relative; }
-        svg { transform: rotate(-90deg); width: 100%; height: 100%; }
-        circle { fill: none; stroke-width: 8; stroke-linecap: round; transition: stroke-dashoffset 1s linear; }
-        .ring-bg { stroke: var(--bg); }
-        .ring-progress { stroke: var(--accent); stroke-dasharray: 630; stroke-dashoffset: 0; }
-        
-        .timer-text {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 3.5rem; font-weight: 800; color: var(--primary); font-variant-numeric: tabular-nums;
+        .timer-display {
+            font-size: 5rem; font-weight: 800; margin-bottom: 20px;
+            font-variant-numeric: tabular-nums; letter-spacing: -2px;
         }
 
-        /* --- INPUT & CONTROLS --- */
-        .goal-input {
-            width: 100%; border: none; border-bottom: 2px solid var(--bg);
-            background: transparent; color: var(--text); font-size: 1.1rem;
-            text-align: center; padding: 10px; margin-bottom: 15px; outline: none;
+        .mode-indicator {
+            display: inline-block; padding: 6px 16px; border-radius: 20px;
+            font-weight: 600; font-size: 0.8rem; text-transform: uppercase;
+            margin-bottom: 30px; background: #eee; color: #555;
         }
-        .goal-input::placeholder { color: var(--subtext); opacity: 0.5; }
+        .mode-focus { background: rgba(0, 184, 148, 0.1); color: var(--accent); }
+        .mode-rest { background: rgba(9, 132, 227, 0.1); color: var(--rest); }
 
-        .btn-main {
-            background: var(--primary); color: var(--bg); border: none;
-            padding: 16px; width: 100%; border-radius: 16px;
-            font-size: 1.1rem; font-weight: 700; cursor: pointer;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: 0.2s;
+        .controls { display: flex; gap: 15px; justify-content: center; }
+        button {
+            border: none; border-radius: 16px; padding: 15px 30px;
+            font-size: 1rem; font-weight: 700; cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
         }
-        .btn-main:active { transform: scale(0.97); }
+        button:active { transform: scale(0.95); }
 
-        /* --- ZEN MODE OVERLAY --- */
-        body.zen-active .container > *:not(.main-focus-card) { display: none; }
-        body.zen-active .main-focus-card { 
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(1.1);
-            width: 85%; max-width: 400px; z-index: 10;
-        }
-        body.zen-active { background: var(--surface); }
-        
-        /* --- BREATH & MOOD --- */
-        .breath-circle {
-            width: 80px; height: 80px; background: var(--rest); border-radius: 50%;
-            margin: 0 auto; display: flex; align-items: center; justify-content: center;
-            color: white; font-weight: bold; font-size: 0.8rem; opacity: 0.8;
-            transition: all 4s ease-in-out;
-        }
-        .inhale { transform: scale(1.8); opacity: 1; }
-        .exhale { transform: scale(0.8); opacity: 0.6; }
+        .btn-start { background: var(--primary); color: white; flex: 2; }
+        .btn-reset { background: #eee; color: #555; flex: 1; }
+        body.dark-mode .btn-reset { background: #333; color: #ccc; }
 
-        /* --- UTILS --- */
-        .pill { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; background: var(--bg); padding: 5px 12px; border-radius: 20px; color: var(--subtext); display: inline-block; margin-bottom: 15px; }
-        .confetti-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 99; }
-        
-        .xp-bar { height: 4px; background: var(--bg); border-radius: 2px; margin-top: 15px; overflow: hidden; }
-        .xp-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s; }
+        .stats {
+            margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;
+            display: flex; justify-content: space-around;
+        }
+        body.dark-mode .stats { border-top-color: #333; }
+        .stat-item { flex: 1; }
+        .stat-val { font-weight: 800; font-size: 1.2rem; display: block; }
+        .stat-label { font-size: 0.7rem; color: var(--subtext); text-transform: uppercase; }
+
+        .level-card {
+            margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.03);
+            border-radius: 16px; text-align: left;
+        }
+        body.dark-mode .level-card { background: rgba(255,255,255,0.03); }
+        .level-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 700; font-size: 0.8rem; }
+        .xp-bar { height: 8px; background: #ddd; border-radius: 4px; overflow: hidden; }
+        body.dark-mode .xp-bar { background: #444; }
+        .xp-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s ease; }
+
+        .theme-toggle {
+            position: absolute; top: 20px; right: 20px;
+            background: none; border: none; font-size: 1.2rem; cursor: pointer;
+        }
+
+        canvas#confetti {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 100;
+        }
     </style>
 </head>
 <body>
-    <canvas id="confetti" class="confetti-canvas"></canvas>
+
+    <canvas id="confetti"></canvas>
 
     <div class="container">
-        <div class="card" id="wisdom-card">
-            <div class="quote-box" id="quote-text">"Loading wisdom..."</div>
-            <span class="quote-author" id="quote-author"></span>
+        <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+        <h1>Monk Mode</h1>
+        <p class="tagline">Deep Work • No Distraction</p>
+
+        <div id="mode-indicator" class="mode-indicator mode-focus">Focus Session</div>
+
+        <div class="timer-display" id="timer">25:00</div>
+
+        <div class="controls">
+            <button class="btn-start" id="start-btn" onclick="toggleTimer()">Start Flow</button>
+            <button class="btn-reset" onclick="resetTimer()">Reset</button>
         </div>
 
-        <div class="card main-focus-card">
-            <div class="pill" id="status-pill">Focus Session</div>
-            
-            <input type="text" id="user-goal" class="goal-input" placeholder="What is your ONE goal?">
-            
-            <div class="timer-ring">
-                <svg>
-                    <circle class="ring-bg" cx="110" cy="110" r="100"></circle>
-                    <circle class="ring-progress" id="ring" cx="110" cy="110" r="100"></circle>
-                </svg>
-                <div class="timer-text" id="timer">25:00</div>
-            </div>
-
-            <p id="move-instruction" style="font-size:0.9rem; color:var(--rest); font-weight:bold; min-height:20px;"></p>
-
-            <button class="btn-main" onclick="toggleTimer()" id="action-btn">Start Focus</button>
-            
-            <div style="margin-top: 15px; display:flex; justify-content:center; gap:15px;">
-                <span onclick="toggleAudio()" style="cursor:pointer; font-size:1.2rem; opacity:0.6">🎧</span>
-                <span onclick="toggleTheme()" style="cursor:pointer; font-size:1.2rem; opacity:0.6">🌓</span>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="pill">Nervous System Reset</div>
-            <div class="breath-circle" id="breath-visual">Tap<br>Start</div>
-            <button onclick="toggleBreath()" style="margin-top:15px; background:none; border:1px solid var(--subtext); padding:8px 20px; border-radius:20px; color:var(--text);">Sync Breath</button>
-        </div>
-
-        <div class="card">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:bold;">Your Journey</span>
-                <span style="font-size:0.8rem; color:var(--subtext);" id="level-display">Lvl 1</span>
+        <div class="level-card">
+            <div class="level-header">
+                <span id="level-display">Level 1</span>
+                <span>XP Progress</span>
             </div>
             <div class="xp-bar"><div class="xp-fill" id="xp-fill"></div></div>
-            <p style="font-size:0.8rem; color:var(--subtext); margin-top:10px;">Total Cycles: <span id="total-cycles">0</span></p>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-val" id="sessions-count">0</span>
+                <span class="stat-label">Cycles</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-val" id="xp-count">0</span>
+                <span class="stat-label">Total XP</span>
+            </div>
         </div>
     </div>
 
+    <audio id="chime" src="https://www.soundjay.com/buttons/sounds/button-30.mp3"></audio>
+
 <script>
-    // --- DATA & STATE ---
-    const quotes = [
-        { q: "We suffer more often in imagination than in reality.", a: "Seneca" },
-        { q: "Focus is not saying yes. It is saying no to the hundred other good ideas.", a: "Steve Jobs" },
-        { q: "The best way out is always through.", a: "Robert Frost" },
-        { q: "Simplicity is the ultimate sophistication.", a: "Leonardo da Vinci" },
-        { q: "Do not let the behavior of others destroy your inner peace.", a: "Dalai Lama" }
-    ];
-    
-    const moves = ["20 Jumping Jacks", "Hold a Plank (30s)", "Stretch your neck", "Touch your toes", "10 Pushups", "Deep Squat Hold", "Walk & Drink Water"];
-    
-    let state = {
-        time: 25 * 60,
-        totalTime: 25 * 60,
-        isActive: false,
-        isWork: true,
-        interval: null,
-        cycles: parseInt(localStorage.getItem('monkCycles')) || 0,
-        audioCtx: null,
-        audioNode: null
-    };
+    let timeLeft = 25 * 60;
+    let timerId = null;
+    let isFocusMode = true;
+    let sessionsCompleted = 0;
+    let xp = 0;
 
-    // --- INIT ---
-    window.onload = () => {
-        // Load Random Quote
-        const r = quotes[Math.floor(Math.random() * quotes.length)];
-        document.getElementById('quote-text').innerText = `"${r.q}"`;
-        document.getElementById('quote-author').innerText = `- ${r.a}`;
-        
-        updateStats();
-        // Check for Dark Mode Preference
-        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            document.body.classList.add('dark-mode');
-        }
-    };
+    const timerDisplay = document.getElementById('timer');
+    const startBtn = document.getElementById('start-btn');
+    const modeIndicator = document.getElementById('mode-indicator');
+    const chime = document.getElementById('chime');
 
-    // --- TIMER ENGINE ---
+    function updateDisplay() {
+        const mins = Math.floor(timeLeft / 60);
+        const secs = timeLeft % 60;
+        timerDisplay.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        document.title = `${timerDisplay.innerText} - Monk Mode`;
+    }
+
     function toggleTimer() {
-        const btn = document.getElementById('action-btn');
-        const input = document.getElementById('user-goal');
-        
-        if (state.isActive) {
-            // Pause
-            clearInterval(state.interval);
-            state.isActive = false;
-            btn.innerText = "Resume";
-            document.body.classList.remove('zen-active');
-            if(state.audioCtx) state.audioCtx.suspend();
+        if (timerId) {
+            stopTimer();
         } else {
-            // Start
-            if(state.isWork && input.value.trim() === "") {
-                input.focus();
-                input.placeholder = "Set an intention first...";
-                return;
+            startTimer();
+        }
+    }
+
+    function startTimer() {
+        startBtn.innerText = "Pause";
+        timerId = setInterval(() => {
+            timeLeft--;
+            updateDisplay();
+            if (timeLeft <= 0) {
+                clearInterval(timerId);
+                timerId = null;
+                finishSession();
             }
-            
-            state.isActive = true;
-            btn.innerText = "Pause";
-            document.body.classList.add('zen-active');
-            
-            // Audio Fade In
-            if(!state.audioCtx) initAudio();
-            if(state.audioCtx && state.audioCtx.state === 'suspended') state.audioCtx.resume();
-
-            state.interval = setInterval(() => {
-                if (state.time > 0) {
-                    state.time--;
-                    renderTime();
-                } else {
-                    completePhase();
-                }
-            }, 1000);
-        }
+        }, 1000);
     }
 
-    function completePhase() {
-        clearInterval(state.interval);
-        state.isActive = false;
-        document.body.classList.remove('zen-active');
-        document.getElementById('action-btn').innerText = "Start Next Phase";
-        
-        // Haptic Feedback
-        navigator.vibrate([500, 200, 500, 200, 1000]);
+    function stopTimer() {
+        clearInterval(timerId);
+        timerId = null;
+        startBtn.innerText = "Resume Flow";
+    }
 
-        if (state.isWork) {
-            // Work Finished
-            state.cycles++;
-            localStorage.setItem('monkCycles', state.cycles);
-            updateStats();
-            fireConfetti(); // REWARD
-            
-            const move = moves[Math.floor(Math.random() * moves.length)];
-            document.getElementById('move-instruction').innerText = `💪 Move: ${move}`;
-            alert(`Great work! You crushed it.\n\nNow: ${move}`);
-            
+    function resetTimer() {
+        stopTimer();
+        isFocusMode = true;
+        timeLeft = 25 * 60;
+        modeIndicator.innerText = "Focus Session";
+        modeIndicator.className = "mode-indicator mode-focus";
+        startBtn.innerText = "Start Flow";
+        updateDisplay();
+    }
+
+    function finishSession() {
+        chime.play();
+        if (isFocusMode) {
+            sessionsCompleted++;
+            xp += 25; 
+            fireConfetti();
+            document.getElementById('sessions-count').innerText = sessionsCompleted;
+            document.getElementById('xp-count').innerText = xp;
+            updateLevel();
+
             // Switch to Rest
-            state.isWork = false;
-            state.time = 5 * 60;
-            state.totalTime = 5 * 60;
-            document.documentElement.style.setProperty('--accent', 'var(--rest)');
-            document.getElementById('status-pill').innerText = "Recharge Phase";
+            isFocusMode = false;
+            timeLeft = 5 * 60;
+            modeIndicator.innerText = "Quick Rest";
+            modeIndicator.className = "mode-indicator mode-rest";
+            startBtn.innerText = "Start Rest";
         } else {
-            // Rest Finished
-            alert("Break over. What is your goal for the next session?");
-            document.getElementById('move-instruction').innerText = "";
-            document.getElementById('user-goal').value = ""; // Clear goal for fresh start
-            
-            // Switch to Work
-            state.isWork = true;
-            state.time = 25 * 60;
-            state.totalTime = 25 * 60;
-            document.documentElement.style.setProperty('--accent', '#00b894'); // Reset color
-            document.getElementById('status-pill').innerText = "Focus Session";
+            // Back to Focus
+            isFocusMode = true;
+            timeLeft = 25 * 60;
+            modeIndicator.innerText = "Focus Session";
+            modeIndicator.className = "mode-indicator mode-focus";
+            startBtn.innerText = "Start Flow";
         }
-        renderTime();
+        updateDisplay();
     }
 
-    function renderTime() {
-        const m = Math.floor(state.time / 60);
-        const s = state.time % 60;
-        document.getElementById('timer').innerText = `${m}:${s < 10 ? '0' : ''}${s}`;
-        
-        // SVG Ring Logic
-        const circle = document.getElementById('ring');
-        const radius = circle.r.baseVal.value;
-        const circumference = radius * 2 * Math.PI;
-        const offset = circumference - (state.time / state.totalTime) * circumference;
-        circle.style.strokeDashoffset = offset;
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+        const btn = document.querySelector('.theme-toggle');
+        btn.innerText = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
     }
 
-    // --- AUDIO (BROWN NOISE) ---
-    function initAudio() {
-        const AudioContext = window.AudioContext || window.webkitAudioContext;
-        state.audioCtx = new AudioContext();
-        const bufferSize = 4096;
-        const brownNoise = (function() {
-            let lastOut = 0.0;
-            const node = state.audioCtx.createScriptProcessor(bufferSize, 1, 1);
-            node.onaudioprocess = function(e) {
-                const output = e.outputBuffer.getChannelData(0);
-                for (let i = 0; i < bufferSize; i++) {
-                    const white = Math.random() * 2 - 1;
-                    output[i] = (lastOut + (0.02 * white)) / 1.02;
-                    lastOut = output[i];
-                    output[i] *= 3.5; // Gain
-                }
-            };
-            return node;
-        })();
-        brownNoise.connect(state.audioCtx.destination);
-    }
-
-    function toggleAudio() {
-        if(!state.audioCtx) {
-            initAudio();
-            alert("Brown Noise On");
-        } else {
-            if(state.audioCtx.state === 'running') state.audioCtx.suspend();
-            else state.audioCtx.resume();
-        }
-    }
-
-    // --- BREATH ---
-    let breathInt;
-    function toggleBreath() {
-        const visual = document.getElementById('breath-visual');
-        if(breathInt) {
-            clearInterval(breathInt);
-            breathInt = null;
-            visual.className = "breath-circle";
-            visual.innerText = "Tap\nStart";
-        } else {
-            let phase = 0;
-            visual.innerText = "Inhale";
-            visual.classList.add('inhale');
-            navigator.vibrate(50);
-            
-            breathInt = setInterval(() => {
-                phase = (phase + 1) % 2;
-                if(phase === 0) {
-                    visual.innerText = "Inhale";
-                    visual.className = "breath-circle inhale";
-                    navigator.vibrate(200);
-                } else {
-                    visual.innerText = "Exhale";
-                    visual.className = "breath-circle exhale";
-                    navigator.vibrate([50, 50]);
-                }
-            }, 4000);
-        }
-    }
-
-    // --- UTILS ---
-    function toggleTheme() { document.body.classList.toggle('dark-mode'); }
-    
-    function updateStats() {
-        document.getElementById('total-cycles').innerText = state.cycles;
-        const xp = state.cycles * 25;
+    function updateLevel() {
         const level = Math.floor(xp / 100) + 1;
         const progress = xp % 100;
         document.getElementById('level-display').innerText = `Level ${level}`;
         document.getElementById('xp-fill').style.width = `${progress}%`;
     }
 
-    // --- CONFETTI ENGINE (Pure JS) ---
+    // --- CONFETTI ENGINE ---
     function fireConfetti() {
         const canvas = document.getElementById('confetti');
         const ctx = canvas.getContext('2d');
