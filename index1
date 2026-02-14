@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Monk Mode: Ultimate Flow</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2d3436">
+
+    <style>
+        :root {
+            --bg: #f4f7f6; --surface: #ffffff; --primary: #2d3436; --accent: #00b894;
+            --text: #2d3436; --subtext: #636e72; --rest: #0984e3;
+            --shadow: 0 10px 40px rgba(0,0,0,0.08);
+        }
+        body.dark-mode {
+            --bg: #111; --surface: #1e1e1e; --primary: #dfe6e9; --accent: #55efc4;
+            --text: #dfe6e9; --subtext: #b2bec3; --rest: #74b9ff;
+            --shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg); color: var(--text);
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 100vh;
+            transition: background 0.5s ease;
+            /* Prevent accidental text selection on mobile */
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .container {
+            width: 90%; max-width: 400px;
+            text-align: center;
+            background: var(--surface); padding: 40px 20px;
+            border-radius: 32px; box-shadow: var(--shadow);
+            position: relative; z-index: 10;
+        }
+
+        h1 { font-weight: 800; font-size: 1.8rem; margin-bottom: 5px; letter-spacing: -0.5px; }
+        .tagline { color: var(--subtext); font-size: 0.9rem; margin-bottom: 30px; }
+
+        .timer-display {
+            font-size: 5rem; font-weight: 800; margin-bottom: 20px;
+            font-variant-numeric: tabular-nums; letter-spacing: -2px;
+        }
+
+        .mode-indicator {
+            display: inline-block; padding: 6px 16px; border-radius: 20px;
+            font-weight: 600; font-size: 0.8rem; text-transform: uppercase;
+            margin-bottom: 30px; background: #eee; color: #555;
+        }
+        .mode-focus { background: rgba(0, 184, 148, 0.1); color: var(--accent); }
+        .mode-rest { background: rgba(9, 132, 227, 0.1); color: var(--rest); }
+
+        .controls { display: flex; gap: 15px; justify-content: center; }
+        button {
+            border: none; border-radius: 16px; padding: 15px 30px;
+            font-size: 1rem; font-weight: 700; cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        button:active { transform: scale(0.95); }
+
+        .btn-start { background: var(--primary); color: white; flex: 2; }
+        .btn-reset { background: #eee; color: #555; flex: 1; }
+        body.dark-mode .btn-reset { background: #333; color: #ccc; }
+
+        .stats {
+            margin-top: 40px; border-top: 1px solid #eee; padding-top: 20px;
+            display: flex; justify-content: space-around;
+        }
+        body.dark-mode .stats { border-top-color: #333; }
+        .stat-item { flex: 1; }
+        .stat-val { font-weight: 800; font-size: 1.2rem; display: block; }
+        .stat-label { font-size: 0.7rem; color: var(--subtext); text-transform: uppercase; }
+
+        .level-card {
+            margin-top: 20px; padding: 15px; background: rgba(0,0,0,0.03);
+            border-radius: 16px; text-align: left;
+        }
+        body.dark-mode .level-card { background: rgba(255,255,255,0.03); }
+        .level-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 700; font-size: 0.8rem; }
+        .xp-bar { height: 8px; background: #ddd; border-radius: 4px; overflow: hidden; }
+        body.dark-mode .xp-bar { background: #444; }
+        .xp-fill { height: 100%; background: var(--accent); width: 0%; transition: width 0.5s ease; }
+
+        .theme-toggle {
+            position: absolute; top: 20px; right: 20px;
+            background: none; border: none; font-size: 1.2rem; cursor: pointer;
+        }
+
+        canvas#confetti {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="confetti"></canvas>
+
+    <div class="container">
+        <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+        <h1>Monk Mode</h1>
+        <p class="tagline">Deep Work • No Distraction</p>
+
+        <div id="mode-indicator" class="mode-indicator mode-focus">Focus Session</div>
+
+        <div class="timer-display" id="timer">25:00</div>
+
+        <div class="controls">
+            <button class="btn-start" id="start-btn" onclick="toggleTimer()">Start Flow</button>
+            <button class="btn-reset" onclick="resetTimer()">Reset</button>
+        </div>
+
+        <div class="level-card">
+            <div class="level-header">
+                <span id="level-display">Level 1</span>
+                <span>XP Progress</span>
+            </div>
+            <div class="xp-bar"><div class="xp-fill" id="xp-fill"></div></div>
+        </div>
+
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-val" id="sessions-count">0</span>
+                <span class="stat-label">Cycles</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-val" id="xp-count">0</span>
+                <span class="stat-label">Total XP</span>
+            </div>
+        </div>
+    </div>
+
+    <audio id="chime" src="https://www.soundjay.com/buttons/sounds/button-30.mp3"></audio>
+
+<script>
+    let timeLeft = 25 * 60;
+    let timerId = null;
+    let isFocusMode = true;
+    let sessionsCompleted = 0;
+    let xp = 0;
+
+    const timerDisplay = document.getElementById('timer');
+    const startBtn = document.getElementById('start-btn');
+    const modeIndicator = document.getElementById('mode-indicator');
+    const chime = document.getElementById('chime');
+
+    function updateDisplay() {
+        const mins = Math.floor(timeLeft / 60);
+        const secs = timeLeft % 60;
+        timerDisplay.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        document.title = `${timerDisplay.innerText} - Monk Mode`;
+    }
+
+    function toggleTimer() {
+        if (timerId) {
+            stopTimer();
+        } else {
+            startTimer();
+        }
+    }
+
+    function startTimer() {
+        startBtn.innerText = "Pause";
+        timerId = setInterval(() => {
+            timeLeft--;
+            updateDisplay();
+            if (timeLeft <= 0) {
+                clearInterval(timerId);
+                timerId = null;
+                finishSession();
+            }
+        }, 1000);
+    }
+
+    function stopTimer() {
+        clearInterval(timerId);
+        timerId = null;
+        startBtn.innerText = "Resume Flow";
+    }
+
+    function resetTimer() {
+        stopTimer();
+        isFocusMode = true;
+        timeLeft = 25 * 60;
+        modeIndicator.innerText = "Focus Session";
+        modeIndicator.className = "mode-indicator mode-focus";
+        startBtn.innerText = "Start Flow";
+        updateDisplay();
+    }
+
+    function finishSession() {
+        chime.play();
+        if (isFocusMode) {
+            sessionsCompleted++;
+            xp += 25; 
+            fireConfetti();
+            document.getElementById('sessions-count').innerText = sessionsCompleted;
+            document.getElementById('xp-count').innerText = xp;
+            updateLevel();
+
+            // Switch to Rest
+            isFocusMode = false;
+            timeLeft = 5 * 60;
+            modeIndicator.innerText = "Quick Rest";
+            modeIndicator.className = "mode-indicator mode-rest";
+            startBtn.innerText = "Start Rest";
+        } else {
+            // Back to Focus
+            isFocusMode = true;
+            timeLeft = 25 * 60;
+            modeIndicator.innerText = "Focus Session";
+            modeIndicator.className = "mode-indicator mode-focus";
+            startBtn.innerText = "Start Flow";
+        }
+        updateDisplay();
+    }
+
+    function toggleTheme() {
+        document.body.classList.toggle('dark-mode');
+        const btn = document.querySelector('.theme-toggle');
+        btn.innerText = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+    }
+
+    function updateLevel() {
+        const level = Math.floor(xp / 100) + 1;
+        const progress = xp % 100;
+        document.getElementById('level-display').innerText = `Level ${level}`;
+        document.getElementById('xp-fill').style.width = `${progress}%`;
+    }
+
+    // --- CONFETTI ENGINE ---
+    function fireConfetti() {
+        const canvas = document.getElementById('confetti');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        let particles = [];
+        const colors = ['#00b894', '#0984e3', '#fdcb6e', '#e17055'];
+        
+        for(let i=0; i<100; i++) {
+            particles.push({
+                x: canvas.width/2, y: canvas.height/2,
+                w: Math.random()*10+5, h: Math.random()*10+5,
+                vx: Math.random()*10-5, vy: Math.random()*10-5,
+                color: colors[Math.floor(Math.random()*colors.length)],
+                life: 100
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            particles.forEach((p, index) => {
+                p.x += p.vx; p.y += p.vy; p.life--;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+                if(p.life <= 0) particles.splice(index, 1);
+            });
+            if(particles.length > 0) requestAnimationFrame(draw);
+        }
+        draw();
+    }
+</script>
+</body>
+</html>
